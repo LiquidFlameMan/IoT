@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Kepler.gl embedded map</title>
+
+  <!--Uber Font-->
+  <link rel="stylesheet" href="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/uber-fonts/4.0.0/superfine.css">
+
+  <!--MapBox css-->
+  <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css" rel="stylesheet">
+
+  <link rel="stylesheet" type="text/css" href="./style.css" />
+
+  <!-— facebook open graph tags -->
+    <meta property="og:url" content="http://kepler.gl/" />
+    <meta property="og:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool" />
+    <meta property="og:description"
+      content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets." />
+    <meta property="og:site_name" content="kepler.gl" />
+    <meta property="og:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="800" />
+    <meta property="og:image:height" content="800" />
+
+    <!-— twitter card tags -->
+      <meta name="twitter:card" content="summary_large_image">
+      <meta name="twitter:site" content="@uber">
+      <meta name="twitter:creator" content="@uber">
+      <meta name="twitter:title" content="Large-scale WebGL-powered Geospatial Data Visualization Tool">
+      <meta name="twitter:description"
+        content="Kepler.gl is a powerful web-based geospatial data analysis tool. Built on a high performance rendering engine and designed for large-scale data sets.">
+      <meta name="twitter:image" content="https://d1a3f4spazzrp4.cloudfront.net/kepler.gl/kepler.gl-meta-tag.png" />
+
+      <!-- Load React/Redux -->
+      <script src="https://unpkg.com/react@16.8.4/umd/react.production.min.js" crossorigin></script>
+      <script src="https://unpkg.com/react-dom@16.8.4/umd/react-dom.production.min.js" crossorigin></script>
+      <script src="https://unpkg.com/redux@3.7.2/dist/redux.js" crossorigin></script>
+      <script src="https://unpkg.com/react-redux@7.1.3/dist/react-redux.min.js" crossorigin></script>
+      <script src="https://unpkg.com/styled-components@4.1.3/dist/styled-components.min.js" crossorigin></script>
+
+      <!-- Load Kepler.gl -->
+      <script src="https://unpkg.com/kepler.gl@2.5.1/umd/keplergl.min.js" crossorigin></script>
+
+      <style type="text/css">
+        body {
+          margin: 0;
+          padding: 0;
+          overflow: hidden;
+        }
+      </style>
+
+      <!--MapBox token-->
+      <script>
+        /**
+         * Provide your MapBox Token
+         **/
+        const MAPBOX_TOKEN = 'pk.eyJ1IjoiaWxhZmlsYSIsImEiOiJja252djN0bngwcWs3Mndta2ZrZ2k1ZXdmIn0.bsinUEFwelSzTu1Pw_pCxg';
+        const WARNING_MESSAGE = 'Please Provide a Mapbox Token in order to use Kepler.gl. Edit this file and fill out MAPBOX_TOKEN with your access key';
+      </script>
+
+      <!-- GA: Delete this as you wish, However to pat ourselves on the back, we only track anonymous pageview to understand how many people are using kepler.gl. -->
+      <script>
+        (function (i, s, o, g, r, a, m) {
+          i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
+            (i[r].q = i[r].q || []).push(arguments)
+          }, i[r].l = 1 * new Date(); a = s.createElement(o),
+            m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
+        })(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'ga');
+        ga('create', 'UA-64694404-19', {
+          'storage': 'none',
+          'clientId': localStorage.getItem('ga:clientId')
+        });
+        ga(function (tracker) {
+          localStorage.setItem('ga:clientId', tracker.get('clientId'));
+        });
+        ga('set', 'checkProtocolTask', null); // Disable file protocol checking.
+        ga('set', 'checkStorageTask', null); // Disable cookie storage checking.
+        ga('set', 'historyImportTask', null); // Disable history checking (requires reading from cookies).
+        ga('set', 'page', 'keplergl-html');
+        ga('send', 'pageview');
+      </script>
+</head>
+
+<body>
+  
+  <!-- We will put our React component inside this div. -->
+  <div class='application'>
+    <div class="table-section">
+      <div class="logo-container">
+        <img class="logo" src="./img/covid-icon.png" />
+        <p>Дистанция трекер</p>
+      </div>
+      <div class="img-container">
+        <img class="girl-img" src="./img/IMG_0133.jpg" />
+      </div>
+      <div class="table-section__table-container">
+        <table class="table-section__table-container__table">
+          <tr class="first-row">
+            <th>Имя</th>
+            <th>Время</th>
+          </tr>
+        </table>
+      </div>
+    </div>
+    <div class="map-container">
+      <div id="app">
+        <!-- Kepler.gl map will be placed here-->
+      </div>
+    </div>
+  </div>
+
+  <!-- Load our React component. -->
+  <script>
+    /* Validate Mapbox Token */
+    if ((MAPBOX_TOKEN || '') === '' || MAPBOX_TOKEN === 'PROVIDE_MAPBOX_TOKEN') {
+      alert(WARNING_MESSAGE);
+    }
+
+    /** STORE **/
+    const reducers = (function createReducers(redux, keplerGl) {
+      return redux.combineReducers({
+        // mount keplerGl reducer
+        keplerGl: keplerGl.keplerGlReducer.initialState({
+          uiState: {
+            readOnly: false,
+            currentModal: null
+          }
+        })
+      });
+    }(Redux, KeplerGl));
+
+    const middleWares = (function createMiddlewares(keplerGl) {
+      return keplerGl.enhanceReduxMiddleware([
+        // Add other middlewares here
+      ]);
+    }(KeplerGl));
+
+    const enhancers = (function craeteEnhancers(redux, middles) {
+      return redux.applyMiddleware(...middles);
+    }(Redux, middleWares));
+
+    const store = (function createStore(redux, enhancers) {
+      const initialState = {};
+
+      return redux.createStore(
+        reducers,
+        initialState,
+        redux.compose(enhancers)
+      );
+    }(Redux, enhancers));
+    /** END STORE **/
+
+    /** COMPONENTS **/
+    var KeplerElement = (function makeKeplerElement(react, keplerGl, mapboxToken) {
+      var LogoSvg = function LogoSvg() {
+        return react.createElement(
+          "div",
+          { className: "logo-container", style: { position: 'fixed', zIndex: 10000, padding: '4px' } },
+          react.createElement(
+            "svg",
+            {
+              className: "kepler_gl__logo",
+              width: "107px",
+              height: "21px",
+              viewBox: "0 0 124 24"
+            },
+            react.createElement(
+              "g",
+              { transform: "translate(13.500000, 13.500000) rotate(45.000000) translate(-13.500000, -13.500000) translate(4.000000, 4.000000)" },
+              react.createElement("rect", { x: "0", y: "6", transform: "matrix(2.535181e-06 1 -1 2.535181e-06 18.1107 6.0369)", fill: "#535C6C", width: "12.1", height: "12.1" }),
+              react.createElement("rect", { x: "6", y: "0", transform: "matrix(2.535182e-06 1 -1 2.535182e-06 18.1107 -6.0369)", fill: "#1FBAD6", width: "12.1", height: "12.1" })
+            ),
+            react.createElement(
+              "g",
+              {},
+              react.createElement("path", { fill: "#1FBAD6", d: "M39,8.7h2.2l-2.8,4.2l2.9,5.1H39l-2.4-4.2h-1.3V18h-2V5l2-0.1v7.3h1.3L39,8.7z" }),
+              react.createElement("path", { fill: "#1FBAD6", d: "M42.4,13.3c0-1.5,0.4-2.7,1.1-3.5s1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C42.8,16.1,42.4,14.9,42.4,13.3z M46.6,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S47.2,10.1,46.6,10.1z" }),
+              react.createElement("path", { fill: "#1FBAD6", d: "M57.1,18.2c-1,0-1.8-0.3-2.3-0.9l0,0l0,1.3v2.5h-2V8.7h1.5l0.3,0.9h0c0.3-0.3,0.7-0.6,1.2-0.7 c0.4-0.2,0.9-0.3,1.4-0.3c1.2,0,2.1,0.4,2.7,1.1c0.6,0.7,0.9,2,0.9,3.7c0,1.6-0.3,2.8-1,3.7C59.2,17.8,58.3,18.2,57.1,18.2z M56.7,10.3c-0.4,0-0.8,0.1-1.1,0.2c-0.3,0.2-0.6,0.4-0.8,0.7v4.3c0.2,0.3,0.4,0.5,0.7,0.7c0.3,0.2,0.7,0.3,1.1,0.3 c0.7,0,1.2-0.2,1.6-0.7c0.4-0.5,0.5-1.3,0.5-2.5c0-0.8-0.1-1.4-0.2-1.8s-0.4-0.7-0.7-0.9C57.6,10.4,57.2,10.3,56.7,10.3z" }),
+              react.createElement("path", { fill: "#1FBAD6", d: "M63.2,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S63.2,16.8,63.2,16z" }),
+              react.createElement("path", { fill: "#1FBAD6", d: "M68.2,13.3c0-1.5,0.4-2.7,1.1-3.5c0.7-0.8,1.8-1.2,3.1-1.2c1.3,0,2.2,0.4,2.8,1.1c0.6,0.7,0.9,1.8,0.9,3.3 c0,0.4,0,0.8,0,1.1h-5.8c0,1.6,0.8,2.4,2.4,2.4c1,0,2-0.2,2.9-0.6l0.2,1.7c-0.4,0.2-0.9,0.4-1.4,0.5s-1.1,0.2-1.7,0.2 c-1.5,0-2.6-0.4-3.3-1.2C68.6,16.1,68.2,14.9,68.2,13.3z M72.4,10.1c-0.7,0-1.2,0.2-1.5,0.5c-0.4,0.4-0.6,0.9-0.6,1.7h4 c0-0.8-0.2-1.4-0.5-1.7S73,10.1,72.4,10.1z" }),
+              react.createElement("path", { fill: "#1FBAD6", d: "M80.2,8.7l0.1,1.7h0c0.3-0.6,0.7-1.1,1.1-1.4c0.4-0.3,1-0.5,1.6-0.5c0.4,0,0.7,0,1,0.1l-0.1,2 c-0.3-0.1-0.7-0.2-1-0.2c-0.7,0-1.3,0.3-1.7,0.8c-0.4,0.5-0.7,1.2-0.7,2.1V18h-2V8.7H80.2z" }),
+              react.createElement("path", { fill: "#1FBAD6", d: "M83.8,17c0-0.8,0.4-1.2,1.2-1.2c0.8,0,1.2,0.4,1.2,1.2c0,0.8-0.4,1.1-1.2,1.1C84.2,18.2,83.8,17.8,83.8,17z" }),
+              react.createElement("path", { fill: "#1FBAD6", d: "M88.5,18.7c0-0.8,0.4-1.4,1.2-1.8c-0.6-0.3-0.9-0.8-0.9-1.5c0-0.7,0.4-1.2,1.1-1.6c-0.3-0.3-0.6-0.6-0.7-0.9 c-0.2-0.4-0.2-0.8-0.2-1.3c0-1,0.3-1.8,0.9-2.3c0.6-0.5,1.6-0.8,2.8-0.8c0.5,0,1,0,1.4,0.1c0.4,0.1,0.8,0.2,1.1,0.4l2.4-0.2v1.5 h-1.5c0.2,0.4,0.2,0.8,0.2,1.3c0,1-0.3,1.7-0.9,2.2s-1.5,0.8-2.7,0.8c-0.7,0-1.2-0.1-1.6-0.2c-0.1,0.1-0.2,0.2-0.3,0.3 c-0.1,0.1-0.1,0.2-0.1,0.4c0,0.2,0.1,0.3,0.2,0.4c0.1,0.1,0.3,0.2,0.6,0.2l2.7,0.2c1,0.1,1.7,0.3,2.2,0.6c0.5,0.3,0.8,0.9,0.8,1.7 c0,0.6-0.2,1.1-0.5,1.5c-0.4,0.4-0.9,0.8-1.5,1c-0.7,0.2-1.5,0.4-2.4,0.4c-1.3,0-2.3-0.2-3-0.6C88.8,20.1,88.5,19.5,88.5,18.7z M95.1,18.4c0-0.3-0.1-0.5-0.3-0.7s-0.6-0.2-1.1-0.3l-2.7-0.3c-0.2,0.1-0.4,0.3-0.5,0.5c-0.1,0.2-0.2,0.4-0.2,0.6 c0,0.4,0.2,0.8,0.5,1c0.4,0.2,1,0.3,1.8,0.3C94.2,19.5,95.1,19.2,95.1,18.4z M94.3,11.5c0-0.6-0.1-1-0.4-1.2 c-0.3-0.2-0.7-0.3-1.3-0.3c-0.7,0-1.1,0.1-1.4,0.3c-0.3,0.2-0.4,0.6-0.4,1.2s0.1,1,0.4,1.2c0.3,0.2,0.7,0.3,1.4,0.3 c0.6,0,1.1-0.1,1.3-0.4S94.3,12,94.3,11.5z" }),
+              react.createElement("path", { fill: "#1FBAD6", d: "M99.4,16V5l2-0.1v10.8c0,0.3,0.1,0.5,0.2,0.6c0.1,0.1,0.3,0.2,0.6,0.2c0.3,0,0.6,0,0.9-0.1V18 c-0.4,0.1-1,0.2-1.6,0.2c-0.8,0-1.3-0.2-1.7-0.5S99.4,16.8,99.4,16z" })
+            )
+          )
+        );
+      };
+
+      return function App() {
+        var rootElm = react.useRef(null);
+        var _useState = react.useState({
+          width: window.innerWidth,
+          height: window.innerHeight
+        });
+        var windowDimension = _useState[0];
+        var setDimension = _useState[1];
+        react.useEffect(function sideEffect() {
+          function handleResize() {
+            setDimension({ width: window.innerWidth, height: window.innerHeight });
+          };
+          window.addEventListener('resize', handleResize);
+          return function () { window.removeEventListener('resize', handleResize); };
+        }, []);
+        return react.createElement(
+          'div',
+          { style: { width: '40vw', height: '40vw' } },
+
+          react.createElement(keplerGl.KeplerGl, {
+            mapboxApiAccessToken: mapboxToken,
+            id: "map",
+            width: "70%",
+            height: "70%"
+          })
+        )
+      }
+    }(React, KeplerGl, MAPBOX_TOKEN));
+
+    const app = (function createReactReduxProvider(react, reactRedux, KeplerElement) {
+      return react.createElement(
+        reactRedux.Provider,
+        { store },
+        react.createElement(KeplerElement, null)
+      )
+    }(React, ReactRedux, KeplerElement));
+    /** END COMPONENTS **/
+
+    /** Render **/
+    (function render(react, reactDOM, app) {
+      reactDOM.render(app, document.getElementById('app'));
+    }(React, ReactDOM, app));
+  </script>
+  <!-- The next script will show how to interact directly with Kepler map store -->
+  <script>
+    /**
+     * Customize map.
+     * In the following section you can use the store object to dispatch Kepler.gl actions
+     * to add new data and customize behavior
+     */
+    (function customize(keplerGl, store) {
+      const datasets = [{ "version": "v1", "data": { "id": "j9pog3tn", "label": "test.csv", "color": [143, 47, 191], "allData": [["2021-05-06 18:04:40 +03:00", 29.82925373, 59.87465998], ["2021-05-03 18:17:40 +03:00", 29.82846924, 59.87400982], ["2021-05-06 12:58:27 +03:00", 29.82876246, 59.87481664], ["2021-05-06 15:56:59 +03:00", 29.82803483, 59.87426055], ["2021-05-02 12:57:14 +03:00", 29.82813233, 59.87398764], ["2021-05-05 13:18:08 +03:00", 29.82868516, 59.87497139], ["2021-05-02 16:21:34 +03:00", 29.82869765, 59.87483751], ["2021-05-07 13:18:37 +03:00", 29.82814024, 59.87439909], ["2021-05-10 18:53:32 +03:00", 29.82781357, 59.87505732], ["2021-05-02 12:43:01 +03:00", 29.8274624, 59.87490578], ["2021-05-07 14:29:17 +03:00", 29.82909491, 59.87494085], ["2021-05-06 12:19:48 +03:00", 29.82780977, 59.8742279], ["2021-05-10 18:55:25 +03:00", 29.82751512, 59.87497283], ["2021-05-09 15:57:07 +03:00", 29.82828477, 59.87431656], ["2021-05-05 19:34:02 +03:00", 29.82838215, 59.87411293], ["2021-05-07 19:48:01 +03:00", 29.82848268, 59.87412719], ["2021-05-03 15:45:15 +03:00", 29.82743456, 59.87429156], ["2021-05-05 16:23:00 +03:00", 29.82860126, 59.87439689], ["2021-05-09 12:10:42 +03:00", 29.82941873, 59.87509564], ["2021-05-08 19:03:37 +03:00", 29.82768143, 59.87402607], ["2021-05-03 16:33:27 +03:00", 29.82866306, 59.87406602], ["2021-05-03 14:58:06 +03:00", 29.82808409, 59.87399295], ["2021-05-10 17:02:41 +03:00", 29.82859266, 59.87429712], ["2021-05-07 19:12:12 +03:00", 29.8281439, 59.87404033], ["2021-05-02 18:21:35 +03:00", 29.82821007, 59.87485036], ["2021-05-05 14:04:12 +03:00", 29.82935133, 59.87408132], ["2021-05-10 17:24:37 +03:00", 29.82968281, 59.87463125], ["2021-05-03 18:55:51 +03:00", 29.82815992, 59.87440561], ["2021-05-03 18:49:06 +03:00", 29.82827677, 59.8750766], ["2021-05-07 19:33:18 +03:00", 29.82771063, 59.87479608], ["2021-05-07 16:24:10 +03:00", 29.82836391, 59.8742695], ["2021-05-03 16:31:57 +03:00", 29.82943823, 59.8746946], ["2021-05-04 13:33:34 +03:00", 29.82899283, 59.87423921], ["2021-05-07 13:55:25 +03:00", 29.82875764, 59.8742301], ["2021-05-10 16:30:29 +03:00", 29.82817162, 59.87430284], ["2021-05-05 16:11:50 +03:00", 29.82956772, 59.87456669], ["2021-05-05 13:42:42 +03:00", 29.82967528, 59.87497755], ["2021-05-05 18:03:42 +03:00", 29.8296083, 59.87440335], ["2021-05-03 18:31:31 +03:00", 29.82851938, 59.87420829], ["2021-05-07 12:07:50 +03:00", 29.82846607, 59.87414888], ["2021-05-04 15:55:40 +03:00", 29.82833534, 59.87419561], ["2021-05-04 16:33:06 +03:00", 29.82858736, 59.874169], ["2021-05-06 14:01:43 +03:00", 29.82833471, 59.87414448], ["2021-05-10 13:00:56 +03:00", 29.82838175, 59.87421652], ["2021-05-06 12:05:14 +03:00", 29.82854943, 59.8741414], ["2021-05-07 17:49:37 +03:00", 29.82841789, 59.87416352], ["2021-05-05 14:34:54 +03:00", 29.82855771, 59.87415459], ["2021-05-02 14:09:04 +03:00", 29.82842627, 59.87418218], ["2021-05-05 13:29:14 +03:00", 29.82854103, 59.87417278], ["2021-05-03 19:10:14 +03:00", 29.828471, 59.87418276], ["2021-05-09 12:16:39 +03:00", 29.8284796, 59.87417091], ["2021-05-04 16:21:03 +03:00", 29.82850372, 59.87420815], ["2021-05-09 18:00:43 +03:00", 29.82837324, 59.87416717], ["2021-05-06 12:27:17 +03:00", 29.82856118, 59.87423309], ["2021-05-05 12:31:59 +03:00", 29.82856798, 59.87420033], ["2021-05-04 12:18:01 +03:00", 29.82834235, 59.87414132], ["2021-05-10 17:12:09 +03:00", 29.82839159, 59.87419397], ["2021-05-05 19:30:17 +03:00", 29.8285813, 59.87420584], ["2021-05-10 17:11:00 +03:00", 29.82849261, 59.87416635], ["2021-05-07 13:38:21 +03:00", 29.82839782, 59.87424155], ["2021-05-03 16:57:31 +03:00", 29.82835638, 59.87413555], ["2021-05-10 18:40:53 +03:00", 29.82852521, 59.87420237], ["2021-05-08 15:48:23 +03:00", 29.82846481, 59.87423082], ["2021-05-06 15:42:16 +03:00", 29.82849128, 59.87422295], ["2021-05-06 13:12:21 +03:00", 29.82846297, 59.87418315], ["2021-05-07 16:52:23 +03:00", 29.82847304, 59.87421644], ["2021-05-08 12:37:54 +03:00", 29.82853858, 59.87417022], ["2021-05-10 15:17:29 +03:00", 29.82851909, 59.87419232], ["2021-05-10 19:08:45 +03:00", 29.82845841, 59.87420533], ["2021-05-07 15:19:59 +03:00", 29.82859442, 59.87418706], ["2021-05-05 17:22:37 +03:00", 29.8285741, 59.87418612], ["2021-05-04 12:02:13 +03:00", 29.82835592, 59.87414104], ["2021-05-02 12:29:45 +03:00", 29.82849849, 59.87414814], ["2021-05-09 12:31:48 +03:00", 29.8284262, 59.87417661], ["2021-05-09 13:05:52 +03:00", 29.82839742, 59.87417827], ["2021-05-09 15:18:16 +03:00", 29.82924174, 59.87486882], ["2021-05-07 13:46:58 +03:00", 29.82912939, 59.87477401], ["2021-05-07 13:48:48 +03:00", 29.82913657, 59.87480083], ["2021-05-08 15:20:11 +03:00", 29.82925118, 59.87484363], ["2021-05-09 17:12:52 +03:00", 29.82915036, 59.87483545], ["2021-05-06 18:30:18 +03:00", 29.82910653, 59.8748633], ["2021-05-08 12:50:25 +03:00", 29.82917207, 59.87485821], ["2021-05-10 12:46:03 +03:00", 29.82924082, 59.87486188], ["2021-05-05 19:16:47 +03:00", 29.82909295, 59.87483981], ["2021-05-04 17:52:41 +03:00", 29.8291932, 59.87486241], ["2021-05-03 17:03:39 +03:00", 29.82915946, 59.87477026], ["2021-05-05 19:25:55 +03:00", 29.82916139, 59.87482539], ["2021-05-07 13:07:14 +03:00", 29.82912586, 59.87480718], ["2021-05-10 15:17:25 +03:00", 29.82910364, 59.87482966], ["2021-05-06 14:31:00 +03:00", 29.82923316, 59.87490295], ["2021-05-08 14:07:06 +03:00", 29.82909247, 59.87477122], ["2021-05-05 16:06:02 +03:00", 29.82919721, 59.87490099], ["2021-05-05 19:53:33 +03:00", 29.82918023, 59.87477092], ["2021-05-10 13:42:09 +03:00", 29.82921874, 59.87477577], ["2021-05-06 14:35:55 +03:00", 29.82911376, 59.8748627], ["2021-05-08 16:16:34 +03:00", 29.82917369, 59.87485853], ["2021-05-02 15:49:04 +03:00", 29.82914879, 59.87482683], ["2021-05-04 14:39:41 +03:00", 29.82921426, 59.87477785], ["2021-05-03 17:14:19 +03:00", 29.82912534, 59.87480765], ["2021-05-10 18:03:43 +03:00", 29.82911988, 59.87483921], ["2021-05-08 16:06:17 +03:00", 29.82921849, 59.87478118], ["2021-05-06 14:12:59 +03:00", 29.82924403, 59.87488915], ["2021-05-02 14:51:34 +03:00", 29.82918395, 59.87485297], ["2021-05-04 18:43:31 +03:00", 29.82913467, 59.87487137], ["2021-05-07 17:27:36 +03:00", 29.82916604, 59.87485113], ["2021-05-04 16:13:30 +03:00", 29.82923203, 59.87489254], ["2021-05-09 12:51:19 +03:00", 29.82915261, 59.87486829], ["2021-05-06 13:16:15 +03:00", 29.82920701, 59.87485382], ["2021-05-06 12:54:10 +03:00", 29.82916747, 59.87482228], ["2021-05-06 18:37:52 +03:00", 29.82913289, 59.8748341], ["2021-05-10 16:08:24 +03:00", 29.82911116, 59.87485033], ["2021-05-06 15:59:30 +03:00", 29.82911843, 59.87486938], ["2021-05-09 18:59:37 +03:00", 29.82920373, 59.87480168], ["2021-05-03 15:19:52 +03:00", 29.82914056, 59.8747846], ["2021-05-08 12:50:45 +03:00", 29.82911193, 59.87478929], ["2021-05-06 17:04:33 +03:00", 29.82914565, 59.87486251], ["2021-05-04 16:50:19 +03:00", 29.82922527, 59.87480297], ["2021-05-10 15:40:11 +03:00", 29.82921344, 59.87490437], ["2021-05-08 12:47:52 +03:00", 29.82777691, 59.87439889], ["2021-05-06 18:36:12 +03:00", 29.82766917, 59.87441881], ["2021-05-06 13:09:01 +03:00", 29.82767416, 59.87437617], ["2021-05-10 15:58:56 +03:00", 29.82795288, 59.87450482], ["2021-05-04 16:56:40 +03:00", 29.82792627, 59.87440333], ["2021-05-07 14:58:36 +03:00", 29.82765778, 59.87451091], ["2021-05-05 17:39:59 +03:00", 29.82788656, 59.87446698], ["2021-05-06 19:24:22 +03:00", 29.82779595, 59.8743933], ["2021-05-06 16:29:22 +03:00", 29.82790008, 59.87449469], ["2021-05-07 18:54:32 +03:00", 29.82775469, 59.87444331], ["2021-05-09 19:01:04 +03:00", 29.82764575, 59.87450424], ["2021-05-02 18:45:39 +03:00", 29.82787967, 59.8744763], ["2021-05-07 13:03:51 +03:00", 29.82760703, 59.87445473], ["2021-05-06 16:17:03 +03:00", 29.82783764, 59.87439061], ["2021-05-04 14:37:22 +03:00", 29.82778125, 59.87437799], ["2021-05-08 14:02:00 +03:00", 29.82772855, 59.8744778], ["2021-05-04 17:27:55 +03:00", 29.82779535, 59.87447398], ["2021-05-05 14:38:08 +03:00", 29.82780628, 59.87442749], ["2021-05-05 16:21:32 +03:00", 29.82776797, 59.87438251], ["2021-05-02 18:44:42 +03:00", 29.82776971, 59.87446001], ["2021-05-09 16:30:24 +03:00", 29.82766205, 59.87444458], ["2021-05-10 17:57:15 +03:00", 29.82763264, 59.87448082], ["2021-05-03 17:47:49 +03:00", 29.8277991, 59.87449142], ["2021-05-09 12:01:25 +03:00", 29.82777961, 59.8744916], ["2021-05-09 12:19:19 +03:00", 29.82775634, 59.87437551], ["2021-05-09 18:08:08 +03:00", 29.82787761, 59.87444465], ["2021-05-05 17:29:59 +03:00", 29.82790677, 59.87448467], ["2021-05-10 16:17:47 +03:00", 29.82760165, 59.87444787], ["2021-05-03 19:29:20 +03:00", 29.82781766, 59.87449814], ["2021-05-08 13:01:59 +03:00", 29.827733, 59.8744501], ["2021-05-05 18:41:53 +03:00", 29.82770209, 59.87449384], ["2021-05-03 16:11:58 +03:00", 29.82793123, 59.8744654], ["2021-05-08 16:57:40 +03:00", 29.82794658, 59.87444597], ["2021-05-09 15:10:56 +03:00", 29.82767098, 59.87437721], ["2021-05-02 16:13:21 +03:00", 29.82794901, 59.87438259], ["2021-05-04 12:43:16 +03:00", 29.82786724, 59.87443288], ["2021-05-02 12:09:46 +03:00", 29.82769739, 59.87450582], ["2021-05-07 14:45:12 +03:00", 29.82774246, 59.87440537], ["2021-05-10 17:54:46 +03:00", 29.82793303, 59.87441445], ["2021-05-10 15:07:04 +03:00", 29.82762871, 59.87440283], ["2021-05-10 14:26:24 +03:00", 29.827838, 59.87447807], ["2021-05-08 13:29:24 +03:00", 29.82781645, 59.87439611], ["2021-05-07 12:17:13 +03:00", 29.827643, 59.87444001], ["2021-05-02 16:07:46 +03:00", 29.82764982, 59.87442305], ["2021-05-09 17:48:30 +03:00", 29.82780821, 59.87442186], ["2021-05-03 14:46:06 +03:00", 29.82783082, 59.87439806], ["2021-05-03 18:45:26 +03:00", 29.82772573, 59.87441818], ["2021-05-03 19:07:19 +03:00", 29.82767408, 59.874477], ["2021-05-10 15:31:14 +03:00", 29.82777706, 59.87437794], ["2021-05-05 14:08:20 +03:00", 29.82759465, 59.87442246], ["2021-05-04 14:47:02 +03:00", 29.82778158, 59.87437999], ["2021-05-07 13:18:54 +03:00", 29.82776828, 59.87437621], ["2021-05-05 19:10:11 +03:00", 29.82767274, 59.87438396], ["2021-05-05 13:10:24 +03:00", 29.82787618, 59.87440281], ["2021-05-05 16:42:11 +03:00", 29.82762983, 59.87450839], ["2021-05-03 13:05:42 +03:00", 29.82794199, 59.8744349]], "fields": [{ "name": "export default `timestamp", "type": "timestamp", "format": "YYYY-M-D H:m:s", "analyzerType": "DATETIME" }, { "name": " longitude", "type": "real", "format": "", "analyzerType": "FLOAT" }, { "name": " latitude ", "type": "real", "format": "", "analyzerType": "FLOAT" }] } }];
+      const config = { "version": "v1", "config": { "visState": { "filters": [], "layers": [{ "id": "ffu31i", "type": "cluster", "config": { "dataId": "j9pog3tn", "label": "new layer", "color": [255, 203, 153], "columns": { "lat": " latitude ", "lng": " longitude" }, "isVisible": true, "visConfig": { "opacity": 0.8, "clusterRadius": 40, "colorRange": { "name": "Global Warming", "type": "sequential", "category": "Uber", "colors": ["#5A1846", "#900C3F", "#C70039", "#E3611C", "#F1920E", "#FFC300"] }, "radiusRange": [1, 40], "colorAggregation": "count" }, "hidden": false, "textLabel": [{ "field": null, "color": [255, 255, 255], "size": 18, "offset": [0, 0], "anchor": "start", "alignment": "center" }] }, "visualChannels": { "colorField": null, "colorScale": "quantile" } }], "interactionConfig": { "tooltip": { "fieldsToShow": { "j9pog3tn": [{ "name": "export default `timestamp", "format": null }] }, "compareMode": false, "compareType": "absolute", "enabled": true }, "brush": { "size": 0.5, "enabled": false }, "geocoder": { "enabled": false }, "coordinate": { "enabled": false } }, "layerBlending": "normal", "splitMaps": [], "animationConfig": { "currentTime": null, "speed": 1 } }, "mapState": { "bearing": 0, "dragRotate": false, "latitude": 59.8743007594105, "longitude": 29.84062419549465, "pitch": 0, "zoom": 12.18823123973994, "isSplit": false }, "mapStyle": { "styleType": "dark", "topLayerGroups": {}, "visibleLayerGroups": { "label": true, "road": true, "border": false, "building": true, "water": true, "land": true, "3d building": false }, "threeDBuildingColor": [9.665468314072013, 17.18305478057247, 31.1442867897876], "mapStyles": {} } } };
+
+      const loadedData = keplerGl.KeplerGlSchema.load(
+        datasets,
+        config
+      );
+
+      store.dispatch(keplerGl.addDataToMap({
+        datasets: loadedData.datasets,
+        config: loadedData.config,
+        options: {
+          centerMap: false
+        }
+      }));
+    }(KeplerGl, store))
+  </script>
+  <script src="https://unpkg.com/ionicons@5.4.0/dist/ionicons.js"></script>
+  <script src="./script.js"></script>
+</body>
+
+</html>
